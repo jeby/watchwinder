@@ -8,17 +8,18 @@ The goal of the project is to create a watch winder using a 28byj-48 stepper wit
 - Selectable direction: clockwise, counterclockwise, and both
 - One LED that stays on during stepper running period and blinks slowly during pause time
 
-## Main Rotation
+## Main Cycle
 The exection will loop 12 times the "Main cicle" in the span of 24h. Each iteration of the "main cicle" is 2 hours long and it is divided in the following parts:
 - Main rotation: 10 minutes long
 - Pause cicle: 1 hour 50 minutes long
 
-The Main rotation is:
+### Main Rotation
+
 - Rotate ceil(TPD/12) turns in clockwise direction in 10 minutes OR
 - Rotate ceil(TPD/12) turns in counterclockwise direction in 10 minutes OR
 - Rotate (ceil(TPD/12))/2 turns in counterclockwise diretion in 5 minutes then Rotate (TPD/12)/2 turns in clockwise diretion in 5 minutes
 
-## Pause Cycle
+### Pause Cycle
 The "Pause cicle" is a cicle made like this:
 Repeat 4 times:
 - Pause for  1649 seconds
