@@ -1,7 +1,3 @@
-
-
-
-
 #include <math.h>
 #include <AccelStepper.h>
 
