@@ -1,7 +1,5 @@
 # Watch Winder Project
 
-TOC
-
 ## Overview
 The goal of the project is to create a watch winder using a 28byj-48 stepper with a ULN2003 driver running for a selectable number of turns every day (24 hours). The turns are distributed during the day and will happen in 12 periods of 10 minutes, separated by a long pause. For example: 650 turns per day, divided by 12 periods means that the stepper will complete 54.2 (rounded up to 55) turns in 10 minutes then rest for 1 hour and 50 minutes. During the rest time the stepper will run again 4 times, completing 1/4 of turn each time in 1 second, evenly separated, in order to improve the watch positional accuracy. This basically means that the pause period is actually divided in 4 subperiods ot time equal to 1/4 of the pause period minus 1 second, at the end of each subperiod the stepper run. 
 
