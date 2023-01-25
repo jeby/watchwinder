@@ -136,9 +136,9 @@ int* checkUserInput() {
   if (switch1Pin1 == LOW) {
     values[0] = ceil(650/12.0)*stepsPerRevolution; //650 turns per day, divided in 12 interval and trasformed in steps per interval
   } else if (switch1Pin2 == LOW) {
-    values[0] = ceil(950)*stepsPerRevolution; //950 turns per day, divided in 12 interval and trasformed in steps per interval
+    values[0] = ceil(950/12)*stepsPerRevolution; //950 turns per day, divided in 12 interval and trasformed in steps per interval
   } else {
-    values[0] = ceil(800)*stepsPerRevolution; //800 turns per day, divided in 12 interval and trasformed in steps per interval
+    values[0] = ceil(800/12)*stepsPerRevolution; //800 turns per day, divided in 12 interval and trasformed in steps per interval
   }
 
   // Switch2:
