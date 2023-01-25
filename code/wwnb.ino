@@ -3,41 +3,35 @@
 
 #define HALFSTEP 8
 
-unsigned long stepperPreviousMillis = 0;
-int stepperSteps = 0;
-unsigned long mainRotationPreviousMillis = 0;
-unsigned long mainRotationSpeed = 600000; //10 minutes in milliseconds
+unsigned long stepperPreviousMillis = 0; // initialization of t0 for stepper
+int stepperSteps = 0; // initialization of stepper count
+unsigned long mainRotationPreviousMillis = 0; // initialization of t0 for main rotation cycle
+const unsigned long mainRotationDuration = 360000; // duration of main rotation: 6 minutes in milliseconds (changed to speed up, originally was 10 minutes)
 unsigned long subPausePreviousMillis = 0;
-unsigned long subPauseDuration = 1649000; //1649 seconds in milliseconds
-unsigned long fastStepperDuration = 1000; //1 second in milliseconds
-const int stepsFastRotation = 1019;
-int mainRotationState = 0;
-int subPauseState = 0;
-int pauseCycleCounter = 0;
-int stepsMainRotation = 224180;
-int direction = 1;
-int fastStepper = 1;
-int prevTurnsPerDay = 224180;
-int prevDirection = 1;
-int ledState = 0;
-unsigned long ledPreviousMillis = 0;
-unsigned long ledOnTime = 250; // in milliseconds
-unsigned long ledOffTime = 250; // in milliseconds
+const unsigned long subPauseDuration = 2309999; //1 hours 54 seconds in milliseconds (changed as main rotation duration decreased)
+const unsigned long fastStepperDuration = 1000; //1 second in milliseconds
+const int stepsFastRotation = 1019; // steps equivalent to 0.25 turns in half mode
+int mainRotationState = 0; // initialize main rotation state
+int subPauseState = 0; // initialize sub pasue state
+int pauseCycleCounter = 0; // initialize counter of pause cycle
+int stepsMainRotation = 224180; // initialize main rotation steps
+int directionSense = 1; // initialize direction
+int ledState = 0; // initalize led state
+unsigned long ledPreviousMillis = 0; // initialize of t0 for led
+const unsigned long ledOnTime = 250; // in milliseconds
+const unsigned long ledOffTime = 250; // in milliseconds
+volatile bool resetLoop = false; // variable to check if an interrupt is going to reset the loop
+int* userInput; // variable to get inputs from user
+const int stepsPerRevolution = 2038*2; // for 28BYJ-48 stepper in half step mode
 
-const int stepsPerRevolution = 2038*2; // for 28BYJ-48 stepper
+const int switch1Pin1 = 7; // pin for switch 1 position 1
+const int switch1Pin2 = 8; // pin for switch 1 position 2
+const int switch2Pin1 = 9; // pin for switch 2 position 1
+const int switch2Pin2 = 10; // pin for switch 2 position 2
 
-int switch1Pin1 = 7; // pin for switch 1 position 1
-int switch1Pin2 = 8; // pin for switch 1 position 2
-
-int switch2Pin1 = 9; // pin for switch 2 position 1
-int switch2Pin2 = 10; // pin for switch 2 position 2
-
-
-int ledPin = 2; // pin for LED
-int* userInput;
+const int ledPin = 2; // pin for LED
 
 AccelStepper stepper(HALFSTEP, 3, 5, 4, 6);
-unsigned long startTime;
 
 void setup() {
   pinMode(switch1Pin1, INPUT_PULLUP);
@@ -45,9 +39,18 @@ void setup() {
   pinMode(switch2Pin1, INPUT_PULLUP);
   pinMode(switch2Pin2, INPUT_PULLUP);
   pinMode(ledPin, OUTPUT);
+  attachInterrupt(digitalPinToInterrupt(switch1Pin1), handleInterrupt, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(switch1Pin2), handleInterrupt, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(switch2Pin1), handleInterrupt, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(switch2Pin2), handleInterrupt, CHANGE);
 }
 
 void loop() {
+
+  if (resetLoop == true) {
+    resetLoop == false;
+    return;
+  }
   // Get user input
   handleUserInput();
 
@@ -58,26 +61,26 @@ void loop() {
   handlePauseCycle();
 }
 
-void handleUserInput() {
-  stepsMainRotation = userInput[0];
-  direction = userInput[1];
-  if (prevTurnsPerDay != stepsMainRotation || prevDirection != direction) {
+void handleInterrupt() {
     mainRotationState = 0;
     subPauseState = 0;
     pauseCycleCounter = 0;
-    prevTurnsPerDay = stepsMainRotation;
-    prevDirection = direction;
-  }
+    resetLoop = true;
+}
+
+void handleUserInput() {
+  stepsMainRotation = userInput[0];
+  directionSense = userInput[1];
 }
 
 void handleMainRotation() {
   if (mainRotationState == 0) {
-    runStepper(stepsMainRotation, mainRotationSpeed, direction);
+    runStepper(stepsMainRotation, mainRotationDuration, directionSense);
     controlLED(mainRotationState);
     mainRotationState = 1;
   } else if (mainRotationState == 1) {
     unsigned long currentMillis = millis();
-    if (currentMillis - mainRotationPreviousMillis >= mainRotationSpeed) {
+    if (currentMillis - mainRotationPreviousMillis >= mainRotationDuration) {
       mainRotationState = 2;
       mainRotationPreviousMillis = currentMillis;
     }
@@ -153,20 +156,20 @@ int* checkUserInput() {
   return values;
 }
 
-void runStepper(int steps, unsigned long millisToRotate, int direction) {
+void runStepper(int steps, unsigned long millisToRotate, int directionSense) {
   // Get current time
   unsigned long currentMillis = millis();
   long int stepperDirection;
   unsigned long stepperSpeed = millisToRotate/steps;
 
-  if (direction == 0) {
+  if (directionSense == 0) {
     if (stepperSteps < steps / 2) {
       stepperDirection = 1;
     } else {
       stepperDirection = -1;
     }
     } else {
-    stepperDirection = direction;
+    stepperDirection = directionSense;
   }
   // Check if it's time to take a step
 
