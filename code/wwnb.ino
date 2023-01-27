@@ -1,7 +1,7 @@
 #include <math.h>
 #include <AccelStepper.h>
 
-#define HALFSTEP 8
+#define FULLSTEP 4
 
 unsigned long stepperPreviousMillis = 0; // initialization of t0 for stepper
 int stepperSteps = 0; // initialization of stepper count
@@ -10,7 +10,7 @@ const unsigned long mainRotationDuration = 360000; // duration of main rotation:
 unsigned long subPausePreviousMillis = 0;
 const unsigned long subPauseDuration = 2309999; //1 hours 54 seconds in milliseconds (changed as main rotation duration decreased)
 const unsigned long fastStepperDuration = 1000; //1 second in milliseconds
-const int stepsFastRotation = 1019; // steps equivalent to 0.25 turns in half mode
+const int stepsFastRotation = 510; // steps equivalent to 0.25 turns in half mode
 int mainRotationState = 0; // initialize main rotation state
 int subPauseState = 0; // initialize sub pasue state
 int pauseCycleCounter = 0; // initialize counter of pause cycle
@@ -21,8 +21,8 @@ unsigned long ledPreviousMillis = 0; // initialize of t0 for led
 const unsigned long ledOnTime = 250; // in milliseconds
 const unsigned long ledOffTime = 250; // in milliseconds
 volatile bool resetLoop = false; // variable to check if an interrupt is going to reset the loop
-int* userInput; // variable to get inputs from user
-const int stepsPerRevolution = 2038*2; // for 28BYJ-48 stepper in half step mode
+unsigned long* userInput; // variable to get inputs from user
+const int stepsPerRevolution = 2038; // for 28BYJ-48 stepper in half step mode
 
 const int switch1Pin1 = 7; // pin for switch 1 position 1
 const int switch1Pin2 = 8; // pin for switch 1 position 2
@@ -31,7 +31,7 @@ const int switch2Pin2 = 10; // pin for switch 2 position 2
 
 const int ledPin = 2; // pin for LED
 
-AccelStepper stepper(HALFSTEP, 3, 5, 4, 6);
+AccelStepper stepper(FULLSTEP, 3, 5, 4, 6);
 
 void setup() {
   pinMode(switch1Pin1, INPUT_PULLUP);
@@ -43,12 +43,17 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(switch1Pin2), handleInterrupt, CHANGE);
   attachInterrupt(digitalPinToInterrupt(switch2Pin1), handleInterrupt, CHANGE);
   attachInterrupt(digitalPinToInterrupt(switch2Pin2), handleInterrupt, CHANGE);
+  Serial.begin(9600);
 }
 
 void loop() {
 
+  Serial.print("Main rotation state: ");
+  Serial.println(mainRotationState);
+
   if (resetLoop == true) {
     resetLoop == false;
+    Serial.println("Loop Returned");
     return;
   }
   // Get user input
@@ -62,6 +67,7 @@ void loop() {
 }
 
 void handleInterrupt() {
+  Serial.println("INTERRUPT!");
     mainRotationState = 0;
     subPauseState = 0;
     pauseCycleCounter = 0;
@@ -69,16 +75,19 @@ void handleInterrupt() {
 }
 
 void handleUserInput() {
+  userInput = checkUserInput();
   stepsMainRotation = userInput[0];
   directionSense = userInput[1];
 }
 
 void handleMainRotation() {
   if (mainRotationState == 0) {
-    runStepper(stepsMainRotation, mainRotationDuration, directionSense);
+    Serial.println("Start main rotation!");
     controlLED(mainRotationState);
     mainRotationState = 1;
   } else if (mainRotationState == 1) {
+    Serial.println("Continuing main rotation");
+    runStepper(stepsMainRotation, mainRotationDuration, directionSense);
     unsigned long currentMillis = millis();
     if (currentMillis - mainRotationPreviousMillis >= mainRotationDuration) {
       mainRotationState = 2;
@@ -89,9 +98,11 @@ void handleMainRotation() {
 
 void handlePauseCycle() {
   if (mainRotationState == 2) {
+    Serial.println("Main Pause starting");
     // Repeat sub-pause pattern 4 times
     while (pauseCycleCounter < 4) {
       // Start sub-pause (resting)
+      Serial.println("Nth pause loop");
       if (subPauseState == 0) {
         controlLED(subPauseState);
         subPauseState = 1;
@@ -99,6 +110,7 @@ void handlePauseCycle() {
       }
       // Check if sub-pause (resting) is ended
       if (subPauseState == 1) {
+        Serial.println("Still resting");
         unsigned long currentMillis = millis();
         if (currentMillis - subPausePreviousMillis >= subPauseDuration) {
           subPauseState = 2;
@@ -107,6 +119,7 @@ void handlePauseCycle() {
         }
   // Start fast stepper action
     if (subPauseState == 2) {
+      Serial.println("Start fast stepper action needed");
       runStepper(stepsMainRotation, fastStepperDuration,1);
       controlLED(1);
       subPauseState = 3;
@@ -128,13 +141,14 @@ void handlePauseCycle() {
 }
 
 
-int* checkUserInput() {
+unsigned long* checkUserInput() {
   // Read switch inputs and update user selections
+  Serial.println("Checking user input...");
   int switch1Pin1 = digitalRead(7);
   int switch1Pin2 = digitalRead(8);
   int switch2Pin1 = digitalRead(9);
   int switch2Pin2 = digitalRead(10);
-  int* values;
+  unsigned long* values;
   // Switch1:
   if (switch1Pin1 == LOW) {
     values[0] = ceil(650/12.0)*stepsPerRevolution; //650 turns per day, divided in 12 interval and trasformed in steps per interval
@@ -143,6 +157,9 @@ int* checkUserInput() {
   } else {
     values[0] = ceil(800/12)*stepsPerRevolution; //800 turns per day, divided in 12 interval and trasformed in steps per interval
   }
+
+  Serial.print("TPD: ");
+  Serial.println(values[0]);
 
   // Switch2:
   if (switch2Pin1 == LOW) {
@@ -153,36 +170,60 @@ int* checkUserInput() {
     values[1] = -1; //counterclockwise
   }
 
+  Serial.print("DIR: ");
+  Serial.println(values[1]);
+
   return values;
 }
 
-void runStepper(int steps, unsigned long millisToRotate, int directionSense) {
+void runStepper(int stepsToRotate, unsigned long millisToRotate, int dirSense) {
+  Serial.println("runStepper has been called!");
+  Serial.print("stepsToRotate: ");
+  Serial.println(stepsToRotate);
+  Serial.print("millisToRotate: ");
+  Serial.println(millisToRotate);
+  Serial.print("dirSense: ");
+  Serial.println(dirSense);
   // Get current time
-  unsigned long currentMillis = millis();
+  
   long int stepperDirection;
-  unsigned long stepperSpeed = millisToRotate/steps;
+  unsigned long stepperSpeed = millisToRotate/stepsToRotate;
+  Serial.print("stepperSpeed: ");
+  Serial.println(stepperSpeed);
 
-  if (directionSense == 0) {
-    if (stepperSteps < steps / 2) {
+  if (dirSense == 0) {
+    if (stepperSteps < stepsToRotate / 2) {
       stepperDirection = 1;
     } else {
       stepperDirection = -1;
     }
     } else {
-    stepperDirection = directionSense;
+    stepperDirection = dirSense;
   }
   // Check if it's time to take a step
-
+  unsigned long currentMillis = millis();
   if (currentMillis - stepperPreviousMillis >= stepperSpeed) {
+        
+        Serial.println("MOVING THE STEPPER");
+        Serial.println(currentMillis);
+        Serial.println(stepperPreviousMillis);
+        Serial.println(currentMillis - stepperPreviousMillis);
+        Serial.print("numsteps: ");
+        Serial.println(stepperDirection);
         stepper.move(stepperDirection);
         stepper.runToPosition();
+        stepperSteps++;
+        Serial.print("totsteps: ");
+        Serial.println(stepperSteps);
+        
+        
     }
-    stepperSteps++;
-    stepperPreviousMillis = currentMillis;
+    
+  stepperPreviousMillis = currentMillis;
 
 
   // Check if we've reached the desired number of steps
-  if (stepperSteps >= steps) {
+  if (stepperSteps >= stepsToRotate) {
     stepperSteps = 0;
     stepperPreviousMillis = 0;
   }
