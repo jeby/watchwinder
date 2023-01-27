@@ -21,7 +21,7 @@ unsigned long ledPreviousMillis = 0; // initialize of t0 for led
 const unsigned long ledOnTime = 250; // in milliseconds
 const unsigned long ledOffTime = 250; // in milliseconds
 volatile bool resetLoop = false; // variable to check if an interrupt is going to reset the loop
-unsigned long* userInput; // variable to get inputs from user
+long int* userInput; // variable to get inputs from user
 const int stepsPerRevolution = 2038; // for 28BYJ-48 stepper in half step mode
 
 const int switch1Pin1 = 7; // pin for switch 1 position 1
@@ -141,14 +141,14 @@ void handlePauseCycle() {
 }
 
 
-unsigned long* checkUserInput() {
+long int* checkUserInput() {
   // Read switch inputs and update user selections
   Serial.println("Checking user input...");
   int switch1Pin1 = digitalRead(7);
   int switch1Pin2 = digitalRead(8);
   int switch2Pin1 = digitalRead(9);
   int switch2Pin2 = digitalRead(10);
-  unsigned long* values;
+  long int* values;
   // Switch1:
   if (switch1Pin1 == LOW) {
     values[0] = ceil(650/12.0)*stepsPerRevolution; //650 turns per day, divided in 12 interval and trasformed in steps per interval
@@ -176,7 +176,7 @@ unsigned long* checkUserInput() {
   return values;
 }
 
-void runStepper(int stepsToRotate, unsigned long millisToRotate, int dirSense) {
+void runStepper(long int stepsToRotate, unsigned long millisToRotate, long int dirSense) {
   Serial.println("runStepper has been called!");
   Serial.print("stepsToRotate: ");
   Serial.println(stepsToRotate);
@@ -187,7 +187,7 @@ void runStepper(int stepsToRotate, unsigned long millisToRotate, int dirSense) {
   // Get current time
   
   long int stepperDirection;
-  unsigned long stepperSpeed = millisToRotate/stepsToRotate;
+  long int stepperSpeed = millisToRotate/stepsToRotate;
   Serial.print("stepperSpeed: ");
   Serial.println(stepperSpeed);
 
